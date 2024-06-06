@@ -1,14 +1,14 @@
 const express = require('express');
-const app = express();
-const port = 3000;
+const tokenRoutes = require('./routes/tokenRoutes')
 require('dotenv').config();
+
+const port = 3000;
+
+const app = express();
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-});
+app.use('/api/tokens', tokenRoutes);
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
