@@ -1,12 +1,10 @@
 const { Queue } = require("bullmq")
-const path = require("path")
-require('dotenv').config({
-    path: path.join(__dirname, '../','./.env')
-});
+const path = require("path");
+const { redis, NODE_ENV } = require("../config/config");
 
-const REDIS_HOST = process.env.REDIS_HOST;
-const REDIS_PORT = process.env.REDIS_PORT;
-const REDIS_PASSWORD = process.env.REDIS_PASSWORD;
+const REDIS_HOST = redis.host;
+const REDIS_PORT = redis.port;
+const REDIS_PASSWORD = redis.password
 
 const DELAY = 1000
 const ATTEMPTS = 1
@@ -19,7 +17,7 @@ const connection = {
     password: REDIS_PASSWORD
 }
 
-// if(process.env.NODE_ENV !== "production") return
+// if(NODE_ENV !== "production") return
 console.log("Initialised queues...")
 
 const solanaQueue = new Queue('solQueue', {

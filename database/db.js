@@ -1,13 +1,8 @@
 const path = require('path');
 const { MongoClient, ServerApiVersion } = require('mongodb');
-require('dotenv').config({
-    path: path.join(__dirname, '../','./.env')
-});
+const { mongoUri, dbName } = require('../config/config');
 
-const URI = process.env.MONGO_URI;
-const dbName = process.env.MONGO_DB_NAME;
-
-let client = new MongoClient(URI, {
+let client = new MongoClient(mongoUri, {
     serverApi: {
       version: ServerApiVersion.v1,
       strict: true,

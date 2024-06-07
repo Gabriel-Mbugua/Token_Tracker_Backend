@@ -7,19 +7,16 @@ const { Metadata, deprecated } = require('@metaplex-foundation/mpl-token-metadat
 
 const { generateSolanaExplorerUrl, cleanString } = require('./tools');
 const { addJob } = require('../messageQueue/queue');
-require('dotenv').config({
-    path: path.join(__dirname, '../','./.env')
-});
+const { solana } = require('../config/config');
 
 let credits = 0
-const HTTP_URL= process.env.QUICKNODE_SOLANA_HTTP_URL;
-const WS_URL= process.env.QUICKNODE_SOLANA_WSS_URL;
+const HTTP_URL= solana.httpUrl;
+const WS_URL= solana.wsUrl;
 const SESSION_HASH = `GM${Math.ceil(Math.random() * 1e9)}`
 
-const RAYDIUM_PUBLIC_KEY = "675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8";
-const INSTRUCTION_NAME = "initialize2";
-const commitment = 'confirmed' // 'processed' | 'confirmed' | 'finalized' | 'recent' | 'single' | 'singleGossip' | 'root' | 'max';
-const excludedPublickKeys = ["So11111111111111111111111111111111111111112"]
+const RAYDIUM_PUBLIC_KEY = solana.raydiumPublicKey;
+const INSTRUCTION_NAME = solana.instructionName;
+const excludedPublickKeys = solana.excludedPublickKeys
 
 const connection = new Connection(HTTP_URL, {
     wsEndpoint: WS_URL,
