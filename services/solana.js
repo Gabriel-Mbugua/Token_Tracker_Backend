@@ -6,7 +6,7 @@ const { AccountLayout, u64, getMint } = require('@solana/spl-token');
 const { Metadata, deprecated } = require('@metaplex-foundation/mpl-token-metadata');
 
 const { generateSolanaExplorerUrl, cleanString } = require('./tools');
-const req = require('express/lib/request');
+const { addJob } = require('../messageQueue/queue');
 require('dotenv').config({
     path: path.join(__dirname, '../','./.env')
 });
@@ -59,15 +59,14 @@ const fetchMintInfo = async (mintAddressStr, connection) => {
 
         const metadataPda = await deprecated.Metadata.getPDA(mintAddress);
         const metadataContent = await Metadata.fromAccountAddress(connection, metadataPda);
-        // console.log("Metadata:", JSON.stringify(metadataContent));
 
         let uriData = "MISSING";
         if (metadataContent?.data?.uri) uriData = await fetchUriData(metadataContent?.data?.uri);
 
         const metadata = {
-            key: metadataContent.key,
-            updateAuthority: metadataContent.updateAuthority,
-            mint: metadataContent.mint,
+            key: metadataContent.key.toString(),
+            updateAuthority: metadataContent.updateAuthority.toString(),
+            mint: metadataContent.mint.toString(),
             rawData: metadataContent.data,
             data: {
                 name: cleanString(metadataContent.data.name),
@@ -104,7 +103,7 @@ const fetchMintInfo = async (mintAddressStr, connection) => {
  * @param {Connection} params.connection - The Solana blockchain connection object.
  * @returns {Object} - The token information object if a valid token account is found.
  */
-const fetchRaydiumAccounts = async ({ txId, connection }) => {
+const fetchRaydiumAccounts = async ({ txId }) => {
     try {
         const tx = await connection.getParsedTransaction(txId, {
             maxSupportedTransactionVersion: 0,
@@ -120,7 +119,7 @@ const fetchRaydiumAccounts = async ({ txId, connection }) => {
             return;
         }
 
-        const tokenAccount = accounts.slice(8, 10).map(acc => acc.toBase58()).find(acc => !excludedPublicKeys.includes(acc));
+        const tokenAccount = accounts.slice(8, 10).map(acc => acc.toBase58()).find(acc => !excludedPublickKeys.includes(acc));
 
         if (!tokenAccount) return;
 
@@ -133,9 +132,14 @@ const fetchRaydiumAccounts = async ({ txId, connection }) => {
         console.log(generateSolanaExplorerUrl(txId));
         console.table(displayData);
         console.log("Total QuickNode Credits Used in this session:", credits);
-        return tokenInfo;
+        
+        return {
+            ...tokenInfo,
+            quicknode: credits
+        }
     } catch (err) {
         console.error(err);
+        throw new Error(err)
     }
 }
 // fetchRaydiumAccounts({ txId: "26DTobUfiR9T2fNHKCA52d6zoEWd8k7tggat6iacq7zCyPSDBf1ueWyXz1EncxxgYSWpMsp9iCiGcpnjLn5rDTF9", connection}).then(res => console.log(res))
@@ -144,7 +148,7 @@ const fetchRaydiumAccounts = async ({ txId, connection }) => {
  * Subscribes to logs emitted by a specific Solana program (Raydium) and triggers an action when a specific instruction is detected.
  * @param {Connection} connection - An instance of Solana's Connection class used to interact with the Solana blockchain.
  */
-const listen = async (connection) => {
+const listen = async () => {
     try {
         const raydiumPublicKey = new PublicKey(RAYDIUM_PUBLIC_KEY);
         console.log(`Subscribing to ${raydiumPublicKey.toString()}...`);
@@ -154,11 +158,36 @@ const listen = async (connection) => {
 
             if (logs && logs.some(log => log.includes(INSTRUCTION_NAME))) {
                 console.log(`Signature for ${INSTRUCTION_NAME} event:`, signature);
-                fetchRaydiumAccounts({ txId: signature, connection });
+
+                addJob({
+                    data: { txId: signature },
+                    jobName: signature,
+                    queueName: "solQueue"
+                })
             }
         }, "finalized");
     } catch (err) {
-        console.error(err);
+        console.error('Subscription error:', err);
+        reconnect();
     }
 }
-listen(connection)
+
+listen()
+
+// addJob({
+//     data: { txId: "4z7DiC7zLuCjpzbYdzZhxRQm586sLf43gmrGPahkgPrYcowoVTNRuCbdw7rUiSuAxSaCfjewMrL8EgzfxfpyPcX5" },
+//     jobName: "4z7DiC7zLuCjpzbYdzZhxRQm586sLf43gmrGPahkgPrYcowoVTNRuCbdw7rUiSuAxSaCfjewMrL8EgzfxfpyPcX5",
+//     queueName: "solQueue"
+// })
+
+const reconnect = () => {
+    console.log('Reconnecting in 5 seconds...');
+    setTimeout(() => listen(connection), 5000);
+};
+
+// listen(connection)
+
+module.exports = {
+    fetchRaydiumAccounts,
+    solListener: listen
+}
