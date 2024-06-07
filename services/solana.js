@@ -172,8 +172,6 @@ const listen = async () => {
     }
 }
 
-listen()
-
 // addJob({
 //     data: { txId: "4z7DiC7zLuCjpzbYdzZhxRQm586sLf43gmrGPahkgPrYcowoVTNRuCbdw7rUiSuAxSaCfjewMrL8EgzfxfpyPcX5" },
 //     jobName: "4z7DiC7zLuCjpzbYdzZhxRQm586sLf43gmrGPahkgPrYcowoVTNRuCbdw7rUiSuAxSaCfjewMrL8EgzfxfpyPcX5",
