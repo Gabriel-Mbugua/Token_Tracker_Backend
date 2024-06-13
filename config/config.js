@@ -1,7 +1,7 @@
 require('dotenv').config();
 
 module.exports = {
-    SOLANA_LISTENER: true,
+    SOLANA_LISTENER: process.env.SOLANA_LISTENER,
     NODE_ENV: process.env.NODE_ENV,
     mongoUri: process.env.MONGO_URI,
     dbName: process.env.MONGO_DB_NAME,
