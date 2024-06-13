@@ -4,21 +4,30 @@ const { mongoUri, dbName } = require('../config/config');
 
 let client = new MongoClient(mongoUri, {
     serverApi: {
-      version: ServerApiVersion.v1,
-      strict: true,
-      deprecationErrors: true,
-    }
-})
+    version: ServerApiVersion.v1,
+    strict: true,
+    deprecationErrors: true,
+    },
+    tls: true, // Ensure TLS is enabled
+    tlsAllowInvalidCertificates: true // Adjust as per your SSL setup
+});
 
 client.connect();
-client = client.db(dbName);
+let db = client.db(dbName);
 console.log(`MongoDB connected to ${dbName}...`);
+
+
+const getDb = () => {
+    if (!db) throw new Error("Database not initialized. Call connectDB first.");
+    return db;
+};
+
 
 /* ------------------------- Connect to the database ------------------------ */
 
 const listDatabases = async () => {
     try{
-        const databases = await client.admin().listDatabases()
+        const databases = await db.admin().listDatabases()
 
         return databases.databases
     }catch(err){
@@ -39,7 +48,7 @@ const listDatabases = async () => {
 const addDocument = async ({ collection, documentId, data }) => {
     try {
         const createdAt = new Date();
-        const response = await client.collection(collection).insertOne({
+        const response = await db.collection(collection).insertOne({
             _id: documentId,
             serverTimestamp: createdAt,
             ...data
@@ -70,7 +79,7 @@ const addDocument = async ({ collection, documentId, data }) => {
 
 const addManyDocuments = async ({ collection, data }) => {
     try{
-        const response = await client.collection(collection).insertMany(data, { ordered: false })
+        const response = await db.collection(collection).insertMany(data, { ordered: false })
 
         const { insertedCount, insertedIds } = response
 
@@ -111,7 +120,7 @@ const addManyDocuments = async ({ collection, data }) => {
  */
 const getDocument = async ({ collection, id }) => {
     try {
-        const response = await client.collection(collection).findOne({ _id: id });
+        const response = await db.collection(collection).findOne({ _id: id });
         return {
             success: true,
             message: "Data Fetched Successfully!",
@@ -145,7 +154,7 @@ const updateDocument = async ({ collection, documentId, data, operation = '$set'
         // Prepare the update operation dynamically based on the input
         const updateOperation = operation === 'multiple' ? data : { [operation]: data };
 
-        const response = await client.collection(collection).updateOne(
+        const response = await db.collection(collection).updateOne(
             { _id: documentId },
             updateOperation,
             { upsert }
@@ -189,7 +198,7 @@ const updateDocument = async ({ collection, documentId, data, operation = '$set'
  */
 const updateManyDocuments = async ({ collection, data, whereKey, whereValue }) => {
     try {
-        const response = await client.collection(collection).updateMany(
+        const response = await db.collection(collection).updateMany(
             { [whereKey]: { $eq: whereValue } }, // where clause
             { $set: data }
         );
@@ -224,7 +233,7 @@ const updateManyDocuments = async ({ collection, data, whereKey, whereValue }) =
  */
 const deleteDocument = async ({ collection, documentId }) => {
     try {
-        const response = await client.collection(collection).deleteOne({ _id: documentId });
+        const response = await db.collection(collection).deleteOne({ _id: documentId });
 
         return {
             success: true,
@@ -242,7 +251,7 @@ const deleteDocument = async ({ collection, documentId }) => {
 
 const deleteManyDocuments = async ({ collection, date }) => {
     try{
-        const response = await client.collection(collection).deleteMany(
+        const response = await db.collection(collection).deleteMany(
             {"signedUpOn": { $lt: date} }
         )
 
@@ -272,7 +281,7 @@ const deleteManyDocuments = async ({ collection, date }) => {
 const incrementValue = async ({ collection, id, key, amount }) => {
     console.log(`Incrementing ${id} ${key} in ${collection} by ${amount}`);
     try {
-        const response = await client.collection(collection).updateOne({ _id: id }, { $inc: { [key]: amount } });
+        const response = await db.collection(collection).updateOne({ _id: id }, { $inc: { [key]: amount } });
         if (!response.acknowledged) throw new Error('Update not acknowledged');
         return true;
     } catch (err) {
@@ -300,7 +309,7 @@ const incrementValue = async ({ collection, id, key, amount }) => {
 const decrementValue = async ({ collection, id, key, amount }) => {
     console.log(`Decrementing ${id} ${key} in ${collection} by ${amount}`);
     try {
-        const response = await client.collection(collection).updateOne(
+        const response = await db.collection(collection).updateOne(
             { _id: id },
             { $inc: { [key]: -amount } }
         );
@@ -323,7 +332,7 @@ const decrementValue = async ({ collection, id, key, amount }) => {
 // })
 
 module.exports = {
-    dbClient: client,
+    db,
     getDocument,
     addDocument,
     updateDocument,

@@ -3,7 +3,7 @@ const { getTokens } = require("../services/tokens")
 
 const fetchTokens = async (req, res) => {
     try{
-        const tokens = await getTokens()
+        const tokens = await getTokens(req.body)
 
         res.status(200).json({
             success: true,

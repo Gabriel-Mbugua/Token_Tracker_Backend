@@ -1,8 +1,12 @@
-const { dbClient } = require("../database/db")
+const { options } = require("joi")
+const { db } = require("../database/db")
 
-const getTokens = async () => {
+const getTokens = async ({ limit = 20 }) => {
     try{
-        const tokens = await dbClient.collection("tokens").find().toArray()
+        const query = {}
+        const options = { limit, }
+
+        const tokens = await db.collection("tokens").find(query, options).toArray()
         
         return tokens
     }catch(err){

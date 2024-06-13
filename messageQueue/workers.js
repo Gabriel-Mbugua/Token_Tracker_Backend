@@ -36,6 +36,7 @@ const solanaQueue = new Worker('solQueue', async job => {
             documentId: `${mint}_${name}`,
             data: {
                 ...tokenInfo,
+                creationTimestamp: Date.now(),
                 network: "solana"
             },
         })
