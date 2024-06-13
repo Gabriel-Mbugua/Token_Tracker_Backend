@@ -7,7 +7,7 @@ const { Metadata, deprecated } = require('@metaplex-foundation/mpl-token-metadat
 
 const { generateSolanaExplorerUrl, cleanString } = require('./tools');
 const { addJob } = require('../messageQueue/queue');
-const { solana } = require('../config/config');
+const { solana, SOLANA_LISTENER } = require('../config/config');
 
 let credits = 0
 const HTTP_URL= solana.httpUrl;
@@ -176,6 +176,7 @@ const listen = async () => {
 // })
 
 const reconnect = () => {
+    if(!SOLANA_LISTENER) return
     console.log('Reconnecting in 5 seconds...');
     setTimeout(() => listen(connection), 5000);
 };
@@ -184,5 +185,5 @@ const reconnect = () => {
 
 module.exports = {
     fetchRaydiumAccounts,
-    solListener: listen
+    solListener: reconnect
 }

@@ -4,9 +4,9 @@ const { mongoUri, dbName } = require('../config/config');
 
 let client = new MongoClient(mongoUri, {
     serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
+        version: ServerApiVersion.v1,
+        strict: true,
+        deprecationErrors: true,
     },
     tls: true, // Ensure TLS is enabled
     tlsAllowInvalidCertificates: true // Adjust as per your SSL setup
