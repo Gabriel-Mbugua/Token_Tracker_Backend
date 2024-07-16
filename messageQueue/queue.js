@@ -20,13 +20,21 @@ const connection = {
 // if(NODE_ENV !== "production") return
 console.log("Initialised queues...")
 
-const solanaQueue = new Queue('solQueue', {
-    connection
-})
+/* ----------------------- Function to create a queue ----------------------- */
+const createQueue = (name, connection) => {
+    return new Queue(name, {
+        connection,
+        defaultJobOptions: {
+            attempts: ATTEMPTS,
+            removeOnComplete,
+            removeOnFail
+        }
+    });
+}
 
 
 const queues =  {
-    'solQueue': solanaQueue
+    'solQueue': createQueue('solQueue', connection)
 }
 
 let solanaQueueInstance = null;
@@ -54,7 +62,7 @@ const addJob = async ({
     delay = DELAY
 }) => {
     try {
-        const queue = getSolanaQueue();
+        const queue = queues[queueName];
 
         if (!queue) throw new Error(`Queue not found`);
 
@@ -65,7 +73,6 @@ const addJob = async ({
             attempts: ATTEMPTS
         };
 
-        console.log({jobName, data, options})
         const job = await queue.add(jobName, data, options);
 
         return {

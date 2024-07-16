@@ -1,11 +1,8 @@
 const { Worker } = require("bullmq")
-const path = require("path");
 const { addDocument } = require("../database/db");
 const { fetchRaydiumAccounts } = require("../services/solana");
 const { NODE_ENV, redis } = require("../config/config");
-require('dotenv').config({
-    path: path.join(__dirname, '../','./.env')
-});
+const { processTokenJobService } = require("../services/token.service");
 
 const REDIS_HOST = redis.host;
 const REDIS_PORT = redis.port;
@@ -20,41 +17,80 @@ const connection = {
 if(NODE_ENV !== "production") return
 console.log("Initialised workers...")
 
-const solanaQueue = new Worker('solQueue', async job => {
-    try{
-        console.log(`L-MQ-W-20 Processing job ${job.id}:`, JSON.stringify(job.data))
-        const { data } = job
-        const { txId } = data
+/* ------------------- Helper function to create a worker ------------------- */
+const createWorker = (name, processFunction, connection) => {
 
-        const tokenInfo = await fetchRaydiumAccounts({ txId })
+    const worker = new Worker(name, async job => {
+        console.log(`Processing ${name} job ${job.id}:`, JSON.stringify(job.data));
+        try {
+            const result = await processFunction(job.data);
+            console.log(`${name} Job ${job.id} completed successfully`);
+            return result;
+        } catch (error) {
+            console.error(`Error processing ${name} job ${job.id}:`, error);
+            throw error; // Re-throw to trigger the 'failed' event
+        }
+    }, { 
+        connection: connection,
+        concurrency,
+        lockDuration,
+    });
 
-        const { mint } = tokenInfo
-        const { name } = tokenInfo.data
+    worker.on('failed', async (job, err) => {
+        console.log(`Job ${job.id} failed with error ${err.message}`);
+        try{
+            await sendSlackTool({
+                url: QUEUE_SLACK_HOOK,
+                title: `${name} Job Failed`,
+                keyValues: [
+                    { key: `*Name:*\n ${job.name} `, value: `*Error:*\n ${err.message}`, },
+                ]
+            });
+        }catch(slackError){
+            console.error('Failed to send Slack notification:', slackError);
+        }
+    });
 
-        const saveDocument = await addDocument({
-            collection: "tokens",
-            documentId: `${mint}_${name}`,
-            data: {
-                ...tokenInfo,
-                creationTimestamp: Date.now(),
-                network: "solana"
-            },
-        })
+    worker.on('error', async (error) => {
+        try{
+            console.error(`Error in ${name} worker: `, error);
+            await sendSlackTool({
+                url: QUEUE_SLACK_HOOK,
+                title: `${name} Job Error`,
+                keyValues: [{ key: `*Error:*\n`, value: `*Error:*\n ${error.message}`, }]
+            });
+        }catch(slackError){
+            console.error('Failed to send Slack notification:', slackError);
+        }
+    });
 
-        return saveDocument
-    }catch(err){
-        console.error(err)
+    worker.on('completed', (job) => {
+        console.log(`${name} Job ${job.id} completed`);
+    });
+
+    return worker;
+};
+
+/* ------------------- Function to initialize all workers ------------------- */
+let initializedWorkers = null
+
+const initializeWorkers = () => {
+    console.log(`Initializing mq workers for ${NODE_ENV} environment...`);
+
+    if(initializedWorkers){
+        console.log('Workers already initialized');
+        return initializedWorkers;
     }
-}, { connection })
 
-solanaQueue.on('failed', async (job, err) =>{
-    console.log(`L-MQ-W-35 ${job.id} failed with error: ${err.message}`)
-})
+    const workers = {
+        solanaQueue: createWorker('solQueue', processTokenJobService, connection),
+    };
 
-solanaQueue.on('error', async (err) =>{
-    console.log(`L-MQ-W-39 Error in worker:`, err)
-})
+    console.log('All workers initialized successfully');
+    return workers;
+};
 
-solanaQueue.on('completed', async (job, err) =>{
-    console.log(`L-MQ-W-35 ${job.id} completed.`)
-})
+module.exports = {
+    initializeWorkers,
+    getWorkers: () => initializedWorkers,
+}

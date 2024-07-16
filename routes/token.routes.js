@@ -1,5 +1,6 @@
 const express = require('express');
-const { fetchTokens } = require('../controllers/tokenController');
+
+const { fetchTokens } = require('../controllers/token.controller');
 
 const router = express.Router();
 
