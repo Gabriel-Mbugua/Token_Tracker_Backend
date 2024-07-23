@@ -14,5 +14,5 @@ const fetchTokens = async (req, res) => {
 }
 
 module.exports = {
-    fetchTokens
+    fetchTokensController: fetchTokens,
 }

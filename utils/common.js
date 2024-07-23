@@ -17,7 +17,7 @@ const isValidData = (data) => {
     });
 };
 
-const genearteUniqueDbId =  () => mongoose.Types.ObjectId()
+const genearteUniqueDbId =  () => new mongoose.Types.ObjectId()
 
 module.exports = {
     isValidData,

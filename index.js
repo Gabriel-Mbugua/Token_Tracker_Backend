@@ -3,11 +3,8 @@ const tokenRoutes = require('./routes/token.routes');
 const { solListener } = require('./services/solana');
 const { connectToDatabase } = require('./database/connection');
 const { initializeWorkers } = require('./messageQueue/workers');
-const { NODE_ENV } = require('./config/config');
+const { NODE_ENV, port } = require('./config/config');
 const { errorHandler } = require('./middlewares/errorHandler');
-require('dotenv').config();
-
-const port = process.env.PORT || 6000;
 
 
 const app = express();
@@ -31,7 +28,7 @@ const startServer = async () => {
 
         /* ---------------------------- Start the server ---------------------------- */
         global.server = app.listen(port, () => {
-            console.info(`Server running on port ${port}`);
+            console.info(`Server running on port http://localhost:${port}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);

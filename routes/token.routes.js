@@ -1,11 +1,9 @@
 const express = require('express');
 
-const { fetchTokens } = require('../controllers/token.controller');
+const { fetchTokensController } = require('../controllers/token.controller');
 
 const router = express.Router();
 
-router.get('/', fetchTokens);
-// router.put('/:id', updateTokenPopularity);
-// router.get('/new', fetchNewTokens); // Route to fetch new tokens
+router.get('/', fetchTokensController);
 
 module.exports = router;
