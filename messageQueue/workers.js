@@ -1,5 +1,4 @@
 const { Worker } = require("bullmq")
-const { addDocument } = require("../database/db");
 const { fetchRaydiumAccounts } = require("../services/solana");
 const { NODE_ENV, redis } = require("../config/config");
 const { processTokenJobService } = require("../services/token.service");
@@ -14,14 +13,17 @@ const connection = {
     password: REDIS_PASSWORD
 }
 
-if(NODE_ENV !== "production") return
+const concurrency = 5
+const lockDuration = 30_000
+
+// if(NODE_ENV !== "production") return
 console.log("Initialised workers...")
 
 /* ------------------- Helper function to create a worker ------------------- */
 const createWorker = (name, processFunction, connection) => {
 
     const worker = new Worker(name, async job => {
-        console.log(`Processing ${name} job ${job.id}:`, JSON.stringify(job.data));
+        console.log(`L-W-26 Processing ${name} job ${job.id}:`, JSON.stringify(job.data));
         try {
             const result = await processFunction(job.data);
             console.log(`${name} Job ${job.id} completed successfully`);

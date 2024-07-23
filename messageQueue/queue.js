@@ -37,14 +37,6 @@ const queues =  {
     'solQueue': createQueue('solQueue', connection)
 }
 
-let solanaQueueInstance = null;
-
-const getSolanaQueue = () => {
-    let solanaQueueInstance
-    if (!solanaQueueInstance) solanaQueueInstance = queues[queueName];
-
-    return solanaQueueInstance;
-};
 /**
  * Adds a job to a specified queue with given parameters, handling errors and returning the job ID upon success.
  * @param {Object} params - The parameters for adding a job.

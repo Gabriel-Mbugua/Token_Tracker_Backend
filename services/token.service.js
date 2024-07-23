@@ -20,11 +20,9 @@ const getTokens = async ({ limit = 20 }) => {
     }
 }
 
-const processTokenJob = async (job) => {
+const processTokenJob = async ({ txId }) => {
     try{
-        console.log(`L-S-T.S-20 Processing job ${job.id}:`, JSON.stringify(job.data))
-        const { data } = job
-        const { txId } = data
+        console.log(`L-S-T.S-20 Processing txId: ${txId}`)
 
         const tokenInfo = await fetchRaydiumAccounts({ txId })
 
@@ -32,6 +30,16 @@ const processTokenJob = async (job) => {
         const { name } = tokenInfo.data
         
         const id = genearteUniqueDbId()
+        console.log({
+            id,
+            model: TokenModel,
+            data: {
+                id,
+                ...tokenInfo,
+                creationTimestamp: Date.now(),
+                network: "solana"
+            },
+        })
 
         const saveDocument = await addDocument({
             id,

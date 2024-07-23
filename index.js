@@ -7,7 +7,7 @@ const { NODE_ENV } = require('./config/config');
 const { errorHandler } = require('./middlewares/errorHandler');
 require('dotenv').config();
 
-const PORT = process.env.PORT || 3000;
+const port = process.env.PORT || 6000;
 
 
 const app = express();
@@ -24,14 +24,14 @@ const startServer = async () => {
         await connectToDatabase()
 
         /* --------------------------- Initialise workers --------------------------- */
-        if (NODE_ENV === "production") initializeWorkers()
+        await initializeWorkers()
 
         /* ----------------------------- Start Listener ----------------------------- */
         solListener()
 
         /* ---------------------------- Start the server ---------------------------- */
         global.server = app.listen(port, () => {
-            logger.info(`Server running on port ${PORT}`);
+            console.info(`Server running on port ${port}`);
         });
     } catch (error) {
         console.error('Failed to start server:', error);
@@ -61,6 +61,3 @@ process.on('SIGTERM', async () => {
     }
 });
 
-
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
