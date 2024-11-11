@@ -1,37 +1,36 @@
-const express = require('express');
-const tokenRoutes = require('./routes/token.routes');
-const { solListener } = require('./services/solana');
-const { connectToDatabase } = require('./database/connection');
-const { initializeWorkers } = require('./messageQueue/workers');
-const { NODE_ENV, port } = require('./config/config');
-const { errorHandler } = require('./middlewares/errorHandler');
-
+import express from "express";
+import { raydiumListener } from "./src/services/raydium/listener.js";
+import { connection } from "./src/database/index.js";
+import { initializeWorkers } from "./src/messageQueue/workers.js";
+import { config } from "./src/config/config.js";
+// import { errorHandler } from "./src/middlewares/errorHandler.js";
+import apiRoutes from "./src/api/routes/index.js";
 
 const app = express();
 
 app.use(express.json());
 
-app.use('/tokens', tokenRoutes);
+app.use("/api", apiRoutes);
 
-app.use(errorHandler)
+// app.use(errorHandler);
 
 const startServer = async () => {
-    try {  
+    try {
         /* ------------------------------ Initialise db ----------------------------- */
-        await connectToDatabase()
+        await connection.connectToDatabase();
 
         /* --------------------------- Initialise workers --------------------------- */
-        await initializeWorkers()
+        await initializeWorkers();
 
         /* ----------------------------- Start Listener ----------------------------- */
-        solListener()
+        raydiumListener.start();
 
         /* ---------------------------- Start the server ---------------------------- */
-        global.server = app.listen(port, () => {
-            console.info(`Server running on port http://localhost:${port}`);
+        global.server = app.listen(config.port, () => {
+            console.info(`Server running on port http://localhost:${config.port}`);
         });
     } catch (error) {
-        console.error('Failed to start server:', error);
+        console.error("Failed to start server:", error);
         process.exit(1);
     }
 };
@@ -39,22 +38,21 @@ const startServer = async () => {
 startServer();
 
 /* ---------------------------- GRACEFUL SHUTDOWN --------------------------- */
-process.on('SIGTERM', async () => {
-    console.log('SIGTERM received. Shutting down gracefully...');
+process.on("SIGTERM", async () => {
+    console.log("SIGTERM received. Shutting down gracefully...");
     /* ------------------------------ Close workers ----------------------------- */
-    await closeWorkers()
+    await closeWorkers();
     /* ------------------------- Close queue connections ------------------------ */
-    await closeConnections()
+    await closeConnections();
     /* ----------------------- Close redis cache instance ----------------------- */
-    redisClient.disconnect()
+    redisClient.disconnect();
 
     if (global.server) {
         global.server.close(() => {
-            console.log('Server closed');
+            console.log("Server closed");
             process.exit(0);
         });
     } else {
         process.exit(0);
     }
 });
-

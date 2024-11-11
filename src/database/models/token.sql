@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS tokens (
+    id TEXT PRIMARY KEY,
+    transaction_id TEXT,
+    address TEXT,
+    network TEXT,
+    decimals INTEGER,
+    supply TEXT,
+    mint_address TEXT,
+    token_standard INTEGER,
+    update_authority TEXT,
+    name TEXT,
+    symbol TEXT,
+    uri TEXT,
+    creators JSONB,
+    authorities JSONB,
+    flags JSONB,
+    risk_analysis JSONB,
+    collection TEXT,
+    uri_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
