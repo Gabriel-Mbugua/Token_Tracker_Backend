@@ -6,7 +6,7 @@ A Node.js application that tracks tokens on blockchain networks, providing a rob
 
 ## Project Structure
 
-.
+````.
 ├── src/
 │ ├── api/
 │ │ ├── controllers/ # Request handlers
@@ -24,7 +24,7 @@ A Node.js application that tracks tokens on blockchain networks, providing a rob
 │ │ └── raydium/ # Raydium-specific functionality
 │ └── utils/ # Utility functions
 ├── errors/ # Error definitions
-└── middlewares/ # Express middleware
+└── middlewares/ # Express middleware```
 
 ## Features
 
@@ -41,3 +41,4 @@ A Node.js application that tracks tokens on blockchain networks, providing a rob
 -   Node.js
 -   PostgresSQL Database
 -   Message Queue System
+````
