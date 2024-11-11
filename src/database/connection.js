@@ -14,7 +14,7 @@ const pool = new Pool({
     idleTimeoutMillis: 30000,
 });
 
-let client;
+export let client = null;
 
 export const connectToDatabase = async () => {
     try {
@@ -24,17 +24,5 @@ export const connectToDatabase = async () => {
     } catch (err) {
         console.log("Failed to connect to db...", err);
         process.exit(1);
-    }
-};
-
-export const getClient = async () => {
-    try {
-        if (!client || client.closed) {
-            await connectToDatabase();
-        }
-        return client;
-    } catch (err) {
-        console.error("Error getting client:", err);
-        throw err;
     }
 };

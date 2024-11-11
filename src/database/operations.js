@@ -1,11 +1,10 @@
-import { getClient } from "./connection.js";
 import format from "pg-format";
+import { client } from "./connection.js";
 
 export const addDocument = async ({ table, id, data }) => {
     try {
         if (!table || !id || !data) throw new Error("Invalid data");
 
-        const client = await getClient();
         const columns = Object.keys(data);
         const values = Object.values(data);
         const placeholders = Array.from({ length: values.length + 1 }, (_, i) => `$${i + 1}`);
@@ -30,8 +29,6 @@ export const addDocument = async ({ table, id, data }) => {
 export const getDocument = async ({ id, table, select = "*" }) => {
     try {
         if (!id || !table) throw new Error("Invalid data");
-
-        const client = await getClient();
 
         const query = format("SELECT %s FROM %I WHERE id = $1", select, table);
 
@@ -72,8 +69,6 @@ export const updateDocument = async ({ table, id, data }) => {
 export const deleteDocument = async ({ table, id }) => {
     try {
         if (!table || !id) throw new Error("Invalid data.");
-
-        const client = await getClient();
 
         const query = format("DELETE FROM %I WHERE id = $1 RETURNING *", table);
 

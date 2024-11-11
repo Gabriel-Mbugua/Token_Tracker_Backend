@@ -35,7 +35,7 @@ const startServer = async () => {
     }
 };
 
-startServer();
+await startServer();
 
 /* ---------------------------- GRACEFUL SHUTDOWN --------------------------- */
 process.on("SIGTERM", async () => {

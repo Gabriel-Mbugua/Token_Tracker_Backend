@@ -1,12 +1,17 @@
-import { getClient } from "../../database/connection.js";
+import format from "pg-format";
+import { client } from "../../database/connection.js";
 
-export const getTokens = async ({ limit = 20 }) => {
+export const getTokens = async ({ limit = 20, riskLevel }) => {
     try {
-        const client = await getClient();
+        const query = format(
+            "SELECT * FROM tokens %s ORDER BY created_at DESC LIMIT $1",
+            riskLevel ? "WHERE risk_analysis->>'riskLevel' = $2" : ""
+        );
 
-        const query = "SELECT * FROM tokens ORDER BY created_at DESC LIMIT $1";
+        const params = [limit];
+        if (riskLevel) params.push(riskLevel);
 
-        const response = await client.query(query, [limit]);
+        const response = await client.query(query, params);
 
         return {
             success: true,

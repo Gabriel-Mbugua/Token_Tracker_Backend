@@ -6,6 +6,7 @@ import { config } from "../../config/config.js";
 import { addDocument } from "../../database/operations.js";
 import { addJob } from "../../messageQueue/queue.js";
 import { commonUtils } from "../../utils/index.js";
+import { client } from "../../database/connection.js";
 // import { logger } from "../../utils/console.js";
 
 class RaydiumListener {
@@ -28,7 +29,15 @@ class RaydiumListener {
         }
     }
 
-    async analyzeTokenRisk(metadata, mintInfo) {
+    calculateRiskLevel(riskCount, socialScore) {
+        if (riskCount > 3) return "HIGH";
+        if (riskCount > 1 && socialScore < 2) return "HIGH";
+        if (riskCount > 0) return "MEDIUM";
+        if (socialScore < 2) return "MEDIUM";
+        return "LOW";
+    }
+
+    async analyzeTokenRisk(metadata, mintInfo, uriData) {
         const risks = [];
 
         // 1. Check metadata completeness
@@ -76,6 +85,103 @@ class RaydiumListener {
             "presale",
         ];
 
+        // 6. Check for social links
+
+        let socialScore = 0;
+
+        if (uriData) {
+            const socialChecks = {
+                twitter: {
+                    field: "twitter",
+                    pattern: /^https?:\/\/(twitter\.com|x\.com)/i,
+                    score: 2,
+                    required: true,
+                },
+                telegram: {
+                    field: "telegram",
+                    pattern: /^https?:\/\/(t\.me|telegram\.me)/i,
+                    score: 1,
+                },
+                discord: {
+                    field: "discord",
+                    pattern: /^https?:\/\/(discord\.gg|discord\.com)/i,
+                    score: 1,
+                },
+                website: {
+                    field: "website",
+                    pattern: /^https?:\/\//i,
+                    score: 1,
+                },
+                medium: {
+                    field: "medium",
+                    pattern: /^https?:\/\/(medium\.com)/i,
+                    score: 1,
+                },
+            };
+
+            // Check each social platform
+            const missingSocials = [];
+            Object.entries(socialChecks).forEach(([platform, check]) => {
+                const value = uriData[check.field];
+                if (!value) {
+                    if (check.required) {
+                        missingSocials.push(platform);
+                    }
+                } else if (!check.pattern.test(value)) {
+                    risks.push(`Invalid ${platform} URL format`);
+                } else {
+                    socialScore += check.score;
+                }
+            });
+
+            if (missingSocials.length > 0) {
+                risks.push(`Missing required social links: ${missingSocials.join(", ")}`);
+            }
+
+            // Check description quality
+            if (!uriData.description) {
+                risks.push("Missing token description");
+            } else if (uriData.description.length < 50) {
+                risks.push("Very short description");
+            }
+
+            // Check for suspicious URLs
+            const suspiciousUrls = [
+                "bit.ly",
+                "tinyurl.com",
+                "goo.gl",
+                "t.co",
+                "is.gd",
+                "buff.ly",
+                "ow.ly",
+                "po.st",
+                "tiny.cc",
+            ];
+
+            Object.values(uriData).forEach((value) => {
+                if (typeof value === "string" && value.startsWith("http")) {
+                    if (suspiciousUrls.some((url) => value.includes(url))) {
+                        risks.push("Uses URL shorteners in metadata");
+                    }
+                }
+            });
+
+            // Check creation source
+            if (uriData.createdOn) {
+                const knownPlatforms = ["pump.fun", "solana.com", "metaplex.com"];
+                if (!knownPlatforms.some((platform) => uriData.createdOn.includes(platform))) {
+                    risks.push("Created on unknown platform");
+                }
+            }
+
+            // Check media assets
+            if (!uriData.image && !uriData.video) {
+                risks.push("No media assets");
+            }
+        } else {
+            risks.push("No URI data found");
+        }
+
         const name = metadata.data.name.toLowerCase();
         const symbol = metadata.data.symbol.toLowerCase();
 
@@ -89,7 +195,7 @@ class RaydiumListener {
             supply: mintInfo.supply.toString(),
             decimals: mintInfo.decimals,
             risks: risks,
-            riskLevel: risks.length > 2 ? "HIGH" : risks.length > 0 ? "MEDIUM" : "LOW",
+            riskLevel: this.calculateRiskLevel(risks.length, socialScore),
         };
     }
 
@@ -157,9 +263,9 @@ class RaydiumListener {
             );
             const metadataContent = await Metadata.fromAccountAddress(this.connection, metadataPda);
 
-            const riskAnalysis = await this.analyzeTokenRisk(metadataContent, mintInfo);
-
             const uriData = metadataContent?.data?.uri ? await this.fetchUriData(metadataContent.data.uri) : null;
+
+            const riskAnalysis = await this.analyzeTokenRisk(metadataContent, mintInfo, uriData);
 
             const mintAuthority = mintInfo.mintAuthority?.toString();
             const freezeAuthority = mintInfo.freezeAuthority?.toString();
@@ -215,11 +321,18 @@ class RaydiumListener {
             const tokenAccount = accounts
                 .slice(8, 10)
                 .map((acc) => acc.toBase58())
-                .find((acc) => config.solana.excludedPublickKeys !== acc);
+                .find((acc) => !config.solana.excludedPublickKeys.includes(acc));
 
             if (!tokenAccount) return null;
 
             const tokenInfo = await this.fetchMintInfo(tokenAccount);
+
+            const existingTokenCheck = await client.query("SELECT * FROM tokens WHERE address = $1", [tokenAccount]);
+
+            if (existingTokenCheck.rowCount > 0) {
+                console.debug("Token already exists in database");
+                return null;
+            }
 
             console.info(`New token found: ${tokenInfo?.name || "MISSING"}`);
 
@@ -316,7 +429,8 @@ export const processRaydiumTokenJob = async (data) => {
 };
 
 // processRaydiumTokenJob({
-//     //     txId: "294eJsLoidJfaH5GA43hbDGH9KYiCsob6CiQr99wTigQmYBVgBgbAaaifkARJ4KrkZdErrLNtuGpasAvkCMdoDKP",
-// txId: "4GwNf56tdZcKn8ZswMfpSn9cud2Yb6GFpDmuhSae7Uo6VB1XXFnbdTKt5oxw7DDgHBsM129BJC6EeJjv2vayfY97",
-// txId: "26uvWwkJ8o4mV7JWkHwuPY1Y12UhoS5KETV5JzSRSQj1mD1HWqrpdMfJ7JWBfXAY9G4EFuPGPTCPY16BVG1f4Viv",
+//     //     //     txId: "294eJsLoidJfaH5GA43hbDGH9KYiCsob6CiQr99wTigQmYBVgBgbAaaifkARJ4KrkZdErrLNtuGpasAvkCMdoDKP",
+//     // txId: "4GwNf56tdZcKn8ZswMfpSn9cud2Yb6GFpDmuhSae7Uo6VB1XXFnbdTKt5oxw7DDgHBsM129BJC6EeJjv2vayfY97",
+//     // txId: "26uvWwkJ8o4mV7JWkHwuPY1Y12UhoS5KETV5JzSRSQj1mD1HWqrpdMfJ7JWBfXAY9G4EFuPGPTCPY16BVG1f4Viv",
+//     txId: "5ogjJSuVJmBuxapu2Lz5AE3t6UEdbPBfFcizKuaVYn4hZAvLG2hGQj4UMJaJshX2rrYuCq4DPZp1MiRnPiswxfn2",
 // });
